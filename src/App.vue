@@ -1,9 +1,11 @@
 <script setup>
-
+import Navbar from '@/components/Navbar.vue';
+import TasksPage from '@/pages/TasksPage.vue';
 </script>
 
 <template>
-  <h1>Hello word</h1>
+  <Navbar />
+  <TasksPage />
 </template>
 
 <style scoped>
