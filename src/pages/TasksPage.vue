@@ -4,45 +4,75 @@
             <div class="row">
                 <div class="col-md-8 offset-md-2">
                     <!-- Add new Task -->
-                    <div class="relative">
-                        <input type="text" class="form-control form-control-lg padding-right-lg"
-                            placeholder="+ Add new task. Press enter to save." />
+                    <NewTask @added="handleAddedTask" />
+
+                    <!-- List of uncompleted tasks -->
+                    <Tasks :tasks="uncompletedTasks" 
+                        @updated="handleUpdatedTask"
+                        @completed="handleCompletedTask"
+                    />
+
+                    <!-- show toggle button -->
+                    <div class="text-center my-3" v-show="showToggleCompletedBtn">
+                        <button class="btn btn-sm btn-secondary" 
+                            @click="showCompletedTasks = !showCompletedTasks">
+                            <span v-if="!showCompletedTasks">Show completed</span>
+                            <span v-else>Hide completed</span>
+                        </button>
                     </div>
-                    <!-- List of tasks -->
-                    <div class="card mt-2">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item py-3">
-                                <div class="d-flex justify-content-start align-items-center">
-                                    <input class="form-check-input mt-0 completed" type="checkbox" />
-                                    <div class="ms-2 flex-grow-1" title="Double click the text to edit or remove">
-                                        <!-- <div class="relative">
-                                            <input class="editable-task" type="text" />
-                                        </div> -->
-                                        <span>My First task</span>
-                                    </div>
-                                    <div class="task-date">24 Feb 12:00</div>
-                                </div>
-                                <div class="task-actions">
-                                    <button class="btn btn-sm btn-circle btn-outline-secondary me-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-pencil-fill" viewBox="0 0 16 16">
-                                            <path
-                                                d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z" />
-                                        </svg>
-                                    </button>
-                                    <button class="btn btn-sm btn-circle btn-outline-danger">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-trash-fill" viewBox="0 0 16 16">
-                                            <path
-                                                d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1H2.5zm3 4a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5zM8 5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7A.5.5 0 0 1 8 5zm3 .5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 1 0z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </li>
-                        </ul>
-                    </div>
+
+                    <!-- list of completed tasks -->
+                    <Tasks :tasks="completedTasks" 
+                        :show="completedTasksIsVisible && showCompletedTasks" 
+                        @updated="handleUpdatedTask"
+                        @completed="handleCompletedTask"
+                    />
                 </div>
             </div>
         </div>
     </main>
 </template>
+<script setup>
+import { computed, onMounted, ref } from "vue";
+import { allTasks, createTask, updateTask, completeTask } from "../http/task-api";
+import Tasks from "../components/tasks/Tasks.vue";
+import NewTask from "../components/tasks/NewTask.vue";
+
+const tasks = ref([])
+
+onMounted(async () => {
+    const { data } = await allTasks()
+    tasks.value = data.data
+})
+
+const uncompletedTasks = computed(() => tasks.value.filter(task => !task.is_completed))
+const completedTasks = computed(() => tasks.value.filter(task => task.is_completed))
+const showToggleCompletedBtn = computed(
+    () => uncompletedTasks.value.length > 0 && completedTasks.value.length > 0
+)
+const completedTasksIsVisible = computed(
+    () => uncompletedTasks.value.length === 0 || completedTasks.value.length > 0
+)
+const showCompletedTasks = ref(false)
+
+const handleAddedTask = async (newTask) => {
+    const { data: createdTask } = await createTask(newTask)
+    tasks.value.unshift(createdTask.data)
+}
+
+const handleUpdatedTask = async (task) => {
+    const { data: updatedTask } = await updateTask(task.id, {
+        name: task.name
+    })
+    const currentTask = tasks.value.find(item => item.id === task.id)
+    currentTask.name = updatedTask.data.name
+}
+
+const handleCompletedTask = async (task) => {
+    const { data: updatedTask } = await completeTask(task.id, {
+        is_completed: task.is_completed
+    })
+    const currentTask = tasks.value.find(item => item.id === task.id)
+    currentTask.is_completed = updatedTask.data.is_completed
+}
+</script>
