@@ -1,46 +1,63 @@
-import { ref, reactive, computed } from "vue";
+import { ref, computed } from "vue";
 import { defineStore } from "pinia";
-import { allTasks, createTask } from "../http/task-api";
+import {
+  allTasks,
+  createTask,
+  updateTask,
+  completeTask,
+  removeTask,
+} from "../http/task-api";
 
-const tmp = {
-    // state データの読み書き
-    state: () => ({
+export const useTaskStore = defineStore("taskStore", () => {
+  const tasks = ref([]);
 
-    }),
-    // getters 加工したデータの読み書き
-    getters: {
+  const uncompletedTasks = computed(() =>
+    tasks.value.filter((task) => !task.is_completed)
+  );
+  const completedTasks = computed(() =>
+    tasks.value.filter((task) => task.is_completed)
+  );
 
-    },
-    // actions メソッド各種
-    actions: {
+  const fetchAllTasks = async () => {
+    const { data } = await allTasks();
+    tasks.value = data.data;
+  };
 
-    },
-}
-export const useTaskStore = defineStore('taskStore', () => {
-    const tasks = ref([]);
+  const handleAddedTask = async (newTask) => {
+    const { data: createdTask } = await createTask(newTask);
+    tasks.value.unshift(createdTask.data);
+  };
 
-    const uncompletedTasks = computed(() => 
-        tasks.value.filter((task) => !task.is_completed)
-    );
-    const completedTasks = computed(() => 
-        tasks.value.filter((task) => task.is_completed)
-    );
+  const handleUpdatedTask = async (task) => {
+    const { data: updatedTask } = await updateTask(task.id, {
+      name: task.name,
+    });
+    const currentTask = tasks.value.find((item) => item.id === task.id);
+    currentTask.name = updatedTask.data.name;
+  };
 
-    const fetchAllTasks = async() => {
-        const { data } = await allTasks();
-        tasks.value = data.data;
-    };
+  const handleCompletedTask = async (task) => {
+    const { data: updatedTask } = await completeTask(task.id, {
+      is_completed: task.is_completed,
+    });
+    const currentTask = tasks.value.find((item) => item.id === task.id);
+    currentTask.is_completed = updatedTask.data.is_completed;
+  };
 
-    const handleAddedTask = async (newTask) => {
-        const { data: createdTask } = await createTask(newTask)
-        tasks.value.unshift(createdTask.data)
-    }
+  const handleRemovedTask = async (task) => {
+    await removeTask(task.id);
+    const index = tasks.value.findIndex((item) => item.id === task.id);
+    tasks.value.splice(index, 1);
+  };
 
-    return {
-        tasks, 
-        completedTasks, 
-        uncompletedTasks, 
-        fetchAllTasks,
-        handleAddedTask
-    };
+  return {
+    tasks,
+    completedTasks,
+    uncompletedTasks,
+    fetchAllTasks,
+    handleAddedTask,
+    handleUpdatedTask,
+    handleCompletedTask,
+    handleRemovedTask,
+  };
 });
